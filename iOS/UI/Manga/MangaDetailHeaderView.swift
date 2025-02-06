@@ -13,6 +13,7 @@ protocol MangaDetailHeaderViewDelegate: AnyObject {
     func bookmarkHeld()
     func trackerPressed()
     func safariPressed()
+    func safariHeld()
     func readPressed()
     func coverPressed()
 }
@@ -28,7 +29,7 @@ class MangaDetailHeaderView: UIView {
     weak var sizeChangeListener: SizeChangeListenerDelegate?
 
     private var cancelBookmarkPress = false
-
+    private var cancelSafariButtonPress = false
     // MARK: Start View Configuration
 
     // main stack view (containing everything)
@@ -80,8 +81,13 @@ class MangaDetailHeaderView: UIView {
     // title label
     private lazy var titleLabel: UILabel = {
         let titleLabel = UILabel()
+
+        let titleLongPress = UILongPressGestureRecognizer(target: self, action: #selector(titlePressed))
+        titleLabel.addGestureRecognizer(titleLongPress)
+
         titleLabel.numberOfLines = 3
         titleLabel.font = .systemFont(ofSize: 22, weight: .semibold)
+        titleLabel.isUserInteractionEnabled = true
         return titleLabel
     }()
 
@@ -222,6 +228,8 @@ class MangaDetailHeaderView: UIView {
         bookmarkButton.addTarget(self, action: #selector(bookmarkHoldCancelled), for: .touchCancel)
         bookmarkButton.addTarget(self, action: #selector(bookmarkHoldCancelled), for: .touchDragExit)
         safariButton.addTarget(self, action: #selector(safariPressed), for: .touchUpInside)
+        safariButton.addTarget(self, action: #selector(safariHoldBegan), for: .touchDown)
+        safariButton.addTarget(self, action: #selector(safariHoldCancelled), for: [.touchCancel, .touchDragExit])
         trackerButton.addTarget(self, action: #selector(trackerPressed), for: .touchUpInside)
         readButton.addTarget(self, action: #selector(readPressed), for: .touchUpInside)
 
@@ -335,10 +343,12 @@ class MangaDetailHeaderView: UIView {
         }
 
         Task {
-            let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { context in
+            let sourceId = manga.sourceId
+            let mangaId = manga.id
+            let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
                 CoreDataManager.shared.hasLibraryManga(
-                    sourceId: manga.sourceId,
-                    mangaId: manga.id,
+                    sourceId: sourceId,
+                    mangaId: mangaId,
                     context: context
                 )
             }
@@ -405,7 +415,7 @@ class MangaDetailHeaderView: UIView {
             source.handlesImageRequests,
             let request = try? await source.getImageRequest(url: url.absoluteString)
         {
-            urlRequest.url = URL(string: request.URL ?? "")
+            urlRequest.url = URL(string: request.url ?? "")
             for (key, value) in request.headers {
                 urlRequest.setValue(value, forHTTPHeaderField: key)
             }
@@ -417,7 +427,7 @@ class MangaDetailHeaderView: UIView {
             processors: [DownsampleProcessor(width: bounds.width)]
         )
 
-        guard let image = try? await ImagePipeline.shared.image(for: request).image else { return }
+        guard let image = try? await ImagePipeline.shared.image(for: request) else { return }
         Task { @MainActor in
             UIView.transition(with: coverImageView, duration: 0.3, options: .transitionCrossDissolve) {
                 self.coverImageView.image = image
@@ -527,6 +537,10 @@ class MangaDetailHeaderView: UIView {
     @objc private func safariPressed() {
         delegate?.safariPressed()
     }
+    @objc private func safariHeld() {
+        cancelSafariButtonPress = true
+        delegate?.safariHeld()
+    }
     @objc private func readPressed() {
         delegate?.readPressed()
     }
@@ -553,6 +567,29 @@ class MangaDetailHeaderView: UIView {
         perform(#selector(bookmarkHeld), with: nil, afterDelay: 0.6)
     }
     @objc private func bookmarkHoldCancelled() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self)
+    }
+
+    @objc private func titlePressed(_ recognizer: UIGestureRecognizer) {
+        guard
+            recognizer.state == .began,
+            let recognizerView = recognizer.view
+        else { return }
+        let menuController = UIMenuController.shared
+        menuController.menuItems = [UIMenuItem(title: NSLocalizedString("COPY", comment: ""), action: #selector(copyTitleText))]
+        menuController.showMenu(from: recognizerView, rect: recognizerView.frame)
+    }
+
+    @objc private func copyTitleText() {
+        UIPasteboard.general.string = titleLabel.text
+    }
+
+    @objc private func safariHoldBegan() {
+        cancelSafariButtonPress = false
+        perform(#selector(safariHeld), with: nil, afterDelay: 0.6)
+    }
+
+    @objc private func safariHoldCancelled() {
         NSObject.cancelPreviousPerformRequests(withTarget: self)
     }
 }

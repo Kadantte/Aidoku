@@ -51,6 +51,9 @@
 "SOURCE_ORDER" = "Ordre des sources";
 "MISSING_SOURCE_TEXT" = "La source originale semble être manquante pour ce manga. Veuillez le retélécharger ou supprimer ce titre de votre bibliothèque.";
 "SELECT_ALL" = "Tout sélectionner";
+"LINK_COPIED" = "Lien Copié";
+"LINK_COPIED_TEXT" = "Le lien a été ajouté au presse-papier.";
+
 
 // Reader
 "CHAPTER" = "Chapitre";
@@ -300,8 +303,8 @@
 "UPCOMING" = "À venir";
 "RENAME_CATEGORY_FAIL" = "Impossible de renommer la catégorie";
 "PINNED" = "Épinglé";
-"%i_CHAPTERS" = "%i chapitres";
-"1_CHAPTER" = "1 chapitre";
+"%i_CHAPTERS" = "%i Chapitres";
+"1_CHAPTER" = "1 Chapitre";
 "RENAME_CATEGORY_FAIL_INFO" = "Les noms de catégorie doivent être uniques.";
 "SYNC_WITH_TRACKER" = "Synchroniser avec le traqueur";
 "SYNC_WITH_TRACKER_INFO" = "Il semble que le dernier chapitre défini dans le traqueur (%g) soit plus élevé que votre dernier chapitre lu. Voulez-vous mettre à jour votre historique local pour qu'il corresponde ?";
@@ -326,3 +329,33 @@
 "ALL_CHAPTERS_READ" = "Tous les chapitres lus";
 "BOTH" = "Les deux";
 "DEFAULT_READING_MODE" = "Mode de lecture par défaut";
+"COVER" = "Couverture";
+"CROP_BORDERS" = "Rogner les bordures";
+"PIN" = "Épingler";
+"REORDER" = "Réorganiser";
+"UNPIN" = "Désépingler";
+"COPY" = "Copier";
+"ANILIST_LOGIN_NEEDED" = "Connexion à AniList nécessaire";
+"MAL_LOGIN_NEEDED_TEXT" = "Votre jeton MyAnimeList a expiré, le tracker MyAnimeList cessera donc de fonctionner jusqu'à ce que vous vous reconnectiez dans les paramètres.";
+"BACKUP_ERROR" = "Erreur lors de la restoration de la sauvegarde";
+"BACKUP_ERROR_TEXT" = "Une erreur s'est produite lors de la restauration : %@. La sauvegarde n'est peut-être pas valide.";
+"ANILIST_LOGIN_NEEDED_TEXT" = "Votre jeton AniList a expiré, le tracker AniList cessera donc de fonctionner jusqu'à ce que vous vous reconnectiez dans les paramètres.";
+"MAL_LOGIN_NEEDED" = "Connexion à MyAnimeList nécessaire";
+"DOWNLOAD_ANYWAY_MESSAGE" = "Vous n'êtes actuellement pas connecté au Wi-Fi. Voulez-vous quand même télécharger ?";
+"READER_BG_COLOR_WHITE" = "Blanc";
+"READER_BG_COLOR_BLACK" = "Noir";
+"READER_BG_COLOR" = "Couleur de fond";
+"READER_BG_COLOR_SYSTEM" = "Système";
+"WARNING" = "Avertissement";
+"NO_WIFI_ALERT_MESSAGE" = "Vous devez être connecté au Wi-Fi pour télécharger ce contenu. Veuillez vous connecter au Wi-Fi et réessayer.";
+"PAUSE" = "Pause";
+"RESUME" = "Reprendre";
+"NO_WIFI_ALERT_TITLE" = "Pas de Wi-Fi";
+"ONLY_DOWNLOAD_ON_WIFI" = "Télécharger uniquement en Wi-Fi";
+"%lld_PLUS_MORE" = "+%lld autres";
+
+// Manga Updates
+"MANGA_UPDATES" = "Mises à jour";
+"NO_UPDATES" = "Pas de mises à jour";
+"SKIPPING_CHAPTERS" = "%i chapitres ignorés, soit la source manque, soit ils ont été filtrés";
+"DELETE_DOWNLOAD_AFTER_READING" = "Supprimer le téléchargement après lecture";

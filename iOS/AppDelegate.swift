@@ -11,7 +11,8 @@ import Nuke
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-    static let isSideloaded = Bundle.main.bundleIdentifier != "xyz.skitty.Aidoku"
+    static let isSideloaded = Bundle.main.bundleIdentifier != "app.aidoku.Aidoku"
+    private var networkObserverId: UUID?
 
     private lazy var loadingAlert: UIAlertController = {
         let loadingAlert = UIAlertController(title: nil, message: NSLocalizedString("LOADING_ELLIPSIS", comment: ""), preferredStyle: .alert)
@@ -51,6 +52,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             .visibleViewController
     }
 
+    var topViewController: UIViewController? {
+        if var topController = UIApplication.shared.windows.first?.rootViewController {
+            while let presentedViewController = topController.presentedViewController {
+                topController = presentedViewController
+            }
+            return topController
+        } else {
+            return nil
+        }
+    }
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -87,6 +99,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 "Library.excludedUpdateCategories": [String](),
                 "Library.updateOnlyOnWifi": true,
                 "Library.refreshMetadata": false,
+                "Library.deleteDownloadAfterReading": false,
 
                 "Browse.languages": ["multi"] + Locale.preferredLanguages.map { Locale(identifier: $0).languageCode },
                 "Browse.updateCount": 0,
@@ -100,6 +113,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 "Reader.downsampleImages": true,
                 "Reader.cropBorders": false,
                 "Reader.saveImageOption": true,
+                "Reader.backgroundColor": "black",
                 "Reader.pagesToPreload": 2,
                 "Reader.pagedPageLayout": "auto",
                 "Reader.verticalInfiniteScroll": true,
@@ -112,13 +126,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         DataLoader.sharedUrlCache.diskCapacity = 0
 
         let pipeline = ImagePipeline {
-            let dataCache = try? DataCache(name: "xyz.skitty.Aidoku.datacache") // disk cache
+            let dataLoader: DataLoader = {
+                let config = URLSessionConfiguration.default
+                config.urlCache = nil
+                return DataLoader(configuration: config)
+            }()
+            let dataCache = try? DataCache(name: "app.aidoku.Aidoku.datacache") // disk cache
             let imageCache = Nuke.ImageCache() // memory cache
             dataCache?.sizeLimit = 500 * 1024 * 1024
-            imageCache.costLimit = 200 * 1024 * 1024
-            imageCache.countLimit = 150
+            imageCache.costLimit = 100 * 1024 * 1024
             $0.dataCache = dataCache
             $0.imageCache = imageCache
+            $0.dataLoader = dataLoader
+            $0.dataCachePolicy = .automatic
+            $0.isStoringPreviewsInMemoryCache = false
         }
 
         ImagePipeline.shared = pipeline
@@ -131,6 +152,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         UserDefaults.standard.set(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, forKey: "currentVersion")
+
+        networkObserverId = Reachability.registerConnectionTypeObserver { connectionType in
+            switch connectionType {
+            case .wifi:
+                if UserDefaults.standard.bool(forKey: "Library.downloadOnlyOnWifi") {
+                    DownloadManager.shared.ignoreConnectionType = false
+                    DownloadManager.shared.resumeDownloads()
+                }
+            case .cellular, .none:
+                if UserDefaults.standard.bool(forKey: "Library.downloadOnlyOnWifi") && !DownloadManager.shared.ignoreConnectionType {
+                    DownloadManager.shared.pauseDownloads()
+                }
+            }
+        }
 
         return true
     }
@@ -146,6 +181,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {
         handleUrl(url: url)
         return true
+    }
+
+    func applicationWillTerminate(_ application: UIApplication) {
+        guard let networkObserverId else { return }
+        Reachability.unregisterConnectionTypeObserver(networkObserverId)
     }
 
     func migrateHistory() async {
@@ -306,6 +346,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func sendAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
-        UIApplication.shared.windows.first?.rootViewController?.present(alert, animated: true)
+        topViewController?.present(alert, animated: true)
     }
 }

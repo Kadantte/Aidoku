@@ -122,6 +122,8 @@ extension MangaManager {
         if options.contains("hasUnread") && CoreDataManager.shared.unreadCount(
             sourceId: manga.sourceId,
             mangaId: manga.id,
+            lang: manga.langFilter,
+            scanlators: manga.scanlatorFilter,
             context: context
         ) > 0 {
             return true
@@ -130,28 +132,24 @@ extension MangaManager {
         if options.contains("notStarted") && CoreDataManager.shared.readCount(
             sourceId: manga.sourceId,
             mangaId: manga.id,
+            lang: manga.langFilter,
+            scanlators: manga.scanlatorFilter,
             context: context
         ) == 0 {
             return true
         }
 
         if !excludedCategories.isEmpty {
-            guard let libraryObject = CoreDataManager.shared.getLibraryManga(
+            // check if excluded via category
+            let categories = CoreDataManager.shared.getCategories(
                 sourceId: manga.sourceId,
                 mangaId: manga.id,
                 context: context
-            ) else {
-                return false
-            }
-
-            // check if excluded via category
-            let categories = CoreDataManager.shared.getCategories(
-                libraryManga: libraryObject
             ).compactMap { $0.title }
 
             if !categories.isEmpty {
                 if excludedCategories.contains(where: categories.contains) {
-                    return false
+                    return true
                 }
             }
         }
@@ -257,12 +255,26 @@ extension MangaManager {
 
                             // update chapter list
                             if mangaObject.chapters?.count != chapters.count && !chapters.isEmpty {
-                                CoreDataManager.shared.setChapters(
+                                let newChapters = CoreDataManager.shared.setChapters(
                                     chapters,
                                     sourceId: manga.sourceId,
                                     mangaId: manga.id,
                                     context: context
                                 )
+                                // update manga updates
+                                let scanlatorFilter = mangaObject.scanlatorFilter ?? []
+                                for chapter in newChapters
+                                where
+                                    mangaObject.langFilter != nil ? chapter.lang == mangaObject.langFilter : true
+                                    && !scanlatorFilter.isEmpty ? scanlatorFilter.contains(chapter.scanlator ?? "") : true
+                                {
+                                    CoreDataManager.shared.createMangaUpdate(
+                                        sourceId: manga.sourceId,
+                                        mangaId: manga.id,
+                                        chapterObject: chapter,
+                                        context: context
+                                    )
+                                }
                                 libraryObject.lastUpdated = Date()
                                 try? context.save()
                             }

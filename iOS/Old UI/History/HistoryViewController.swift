@@ -147,33 +147,45 @@ class HistoryViewController: UIViewController {
         observers.append(NotificationCenter.default.addObserver(
             forName: Notification.Name("updateHistory"), object: nil, queue: nil
         ) { [weak self] _ in
-            self?.queueRefresh = true
+            Task { @MainActor in
+                self?.queueRefresh = true
+            }
         })
         observers.append(NotificationCenter.default.addObserver(
             forName: Notification.Name("historyAdded"), object: nil, queue: nil
         ) { [weak self] _ in
-            self?.queueRefresh = true
+            Task { @MainActor in
+                self?.queueRefresh = true
+            }
         })
         observers.append(NotificationCenter.default.addObserver(
             forName: Notification.Name("historyRemoved"), object: nil, queue: nil
         ) { [weak self] _ in
-            self?.queueRefresh = true
+            Task { @MainActor in
+                self?.queueRefresh = true
+            }
         })
         observers.append(NotificationCenter.default.addObserver(
             forName: Notification.Name("historySet"), object: nil, queue: nil
         ) { [weak self] _ in
-            self?.queueRefresh = true
+            Task { @MainActor in
+                self?.queueRefresh = true
+            }
         })
         observers.append(NotificationCenter.default.addObserver(
             forName: Notification.Name("History.lockHistoryTab"), object: nil, queue: nil
         ) { [weak self] _ in
-            self?.locked = UserDefaults.standard.bool(forKey: "History.lockHistoryTab")
+            Task { @MainActor in
+                self?.locked = UserDefaults.standard.bool(forKey: "History.lockHistoryTab")
+            }
         })
         // lock when app moves to background
         observers.append(NotificationCenter.default.addObserver(
             forName: UIApplication.willResignActiveNotification, object: nil, queue: nil
         ) { [weak self] _ in
-            self?.locked = UserDefaults.standard.bool(forKey: "History.lockHistoryTab")
+            Task { @MainActor in
+                self?.locked = UserDefaults.standard.bool(forKey: "History.lockHistoryTab")
+            }
         })
     }
 
@@ -279,7 +291,7 @@ class HistoryViewController: UIViewController {
         loadingTask = Task {
             var historyDict: [Int: [HistoryEntry]] = entries.reduce(into: [:]) { $0[$1.0] = $1.1 }
             var mangaKeys: [String] = self.shownMangaKeys
-            let historyObj = await CoreDataManager.shared.container.performBackgroundTask { context in
+            let historyObj = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
                 CoreDataManager.shared.getRecentHistory(limit: 15, offset: offset, context: context).map {
                     HistoryInfo(
                         sourceId: $0.sourceId,
@@ -302,7 +314,7 @@ class HistoryViewController: UIViewController {
                 let days = Calendar.autoupdatingCurrent.dateComponents(
                     Set([Calendar.Component.day]),
                     from: obj.dateRead ?? Date.distantPast,
-                    to: Date()
+                    to: Date.endOfDay()
                 ).day ?? 0
                 var arr = historyDict[days] ?? []
 
@@ -417,7 +429,7 @@ class HistoryViewController: UIViewController {
 
         let action = UIAlertAction(title: NSLocalizedString("CLEAR", comment: ""), style: .destructive) { _ in
             Task { @MainActor in
-                await CoreDataManager.shared.container.performBackgroundTask { context in
+                await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
                     CoreDataManager.shared.clearHistory(context: context)
                     try? context.save()
                 }
@@ -486,29 +498,7 @@ extension HistoryViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         guard section < filteredSearchEntries.count else { return nil }
         let days = filteredSearchEntries[section].0
-        let now = Date()
-        let date = now.addingTimeInterval(-86400 * Double(days))
-        let difference = Calendar.autoupdatingCurrent.dateComponents(Set([Calendar.Component.day]), from: date, to: now)
-
-        // today or yesterday
-        if days < 2 {
-            let formatter = DateFormatter()
-            formatter.locale = Locale.autoupdatingCurrent
-            formatter.dateStyle = .medium
-            formatter.doesRelativeDateFormatting = true
-            return formatter.string(from: date)
-        } else if days < 8 { // n days ago
-            let formatter = DateComponentsFormatter()
-            formatter.unitsStyle = .short
-            formatter.allowedUnits = .day
-            guard let timePhrase = formatter.string(from: difference) else { return "" }
-            return String(format: NSLocalizedString("%@_AGO", comment: ""), timePhrase)
-        } else { // mm/dd/yy
-            let formatter = DateFormatter()
-            formatter.locale = Locale.autoupdatingCurrent
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
-        }
+        return Date.makeRelativeDate(days: days)
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {

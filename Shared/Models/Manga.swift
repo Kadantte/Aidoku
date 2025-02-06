@@ -32,7 +32,9 @@ class Manga: Codable, Hashable {
     var nsfw: MangaContentRating
     var viewer: MangaViewer
 
-//    var tintColor: CodableColor?
+    var chapterFlags: Int
+    var langFilter: String?
+    var scanlatorFilter: [String]?
 
     var lastUpdated: Date?
     var lastOpened: Date?
@@ -52,7 +54,9 @@ class Manga: Codable, Hashable {
         status: PublishingStatus = .unknown,
         nsfw: MangaContentRating = .safe,
         viewer: MangaViewer = .defaultViewer,
-//        tintColor: UIColor? = nil,
+        chapterFlags: Int = 0,
+        langFilter: String? = nil,
+        scanlatorFilter: [String]? = nil,
         lastUpdated: Date? = nil,
         lastOpened: Date? = nil,
         lastRead: Date? = nil,
@@ -70,7 +74,9 @@ class Manga: Codable, Hashable {
         self.status = status
         self.nsfw = nsfw
         self.viewer = viewer
-//        self.tintColor = tintColor != nil ? CodableColor(color: tintColor!) : nil
+        self.chapterFlags = chapterFlags
+        self.langFilter = langFilter
+        self.scanlatorFilter = scanlatorFilter
         self.lastUpdated = lastUpdated
         self.lastOpened = lastOpened
         self.lastRead = lastRead
@@ -88,7 +94,9 @@ class Manga: Codable, Hashable {
         status = manga.status
         nsfw = manga.nsfw
         viewer = manga.viewer
-//        tintColor = manga.tintColor ?? tintColor
+        chapterFlags = manga.chapterFlags
+        langFilter = manga.langFilter ?? langFilter
+        scanlatorFilter = manga.scanlatorFilter ?? scanlatorFilter
         lastUpdated = manga.lastUpdated ?? lastUpdated
         lastOpened = manga.lastOpened ?? lastOpened
         lastRead = manga.lastRead ?? lastRead
@@ -109,6 +117,9 @@ class Manga: Codable, Hashable {
             status: manga.status,
             nsfw: manga.nsfw,
             viewer: manga.viewer,
+            chapterFlags: manga.chapterFlags,
+            langFilter: manga.langFilter ?? langFilter,
+            scanlatorFilter: manga.scanlatorFilter ?? scanlatorFilter,
             lastUpdated: manga.lastUpdated ?? lastUpdated,
             lastOpened: manga.lastOpened ?? lastOpened,
             lastRead: manga.lastRead ?? lastRead,
@@ -117,7 +128,13 @@ class Manga: Codable, Hashable {
     }
 
     func toInfo() -> MangaInfo {
-        MangaInfo(mangaId: id, sourceId: sourceId, coverUrl: coverUrl, title: title, author: author)
+        MangaInfo(
+            mangaId: id,
+            sourceId: sourceId,
+            coverUrl: coverUrl,
+            title: title,
+            author: author
+        )
     }
 
     static func == (lhs: Manga, rhs: Manga) -> Bool {
@@ -131,6 +148,7 @@ class Manga: Codable, Hashable {
 }
 
 extension Manga: KVCObject {
+    // swiftlint:disable:next cyclomatic_complexity
     func valueByPropertyName(name: String) -> Any? {
         switch name {
         case "id": return id
@@ -144,6 +162,9 @@ extension Manga: KVCObject {
         case "status": return status.rawValue
         case "nsfw": return nsfw.rawValue
         case "viewer": return viewer.rawValue
+        case "chapterFlags": return chapterFlags
+        case "langFilter": return langFilter
+        case "scanlatorFilter": return scanlatorFilter
         default: return nil
         }
     }

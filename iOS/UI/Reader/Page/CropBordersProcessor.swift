@@ -7,7 +7,7 @@
 
 import Foundation
 import Nuke
-import CoreGraphics
+import UIKit
 
 struct CropBordersProcessor: ImageProcessing {
 
@@ -17,45 +17,53 @@ struct CropBordersProcessor: ImageProcessing {
 
     private let whiteThreshold = 0xAA
     private let blackThreshold = 0x05
+    private let colorSpace = CGColorSpaceCreateDeviceRGB()
+    private let downscale = 0.4
 
     func process(_ image: PlatformImage) -> PlatformImage? {
         guard let cgImage = image.cgImage else { return image }
 
-        let newRect = createCropRect(cgImage)
-        if let croppedImage = cgImage.cropping(to: newRect) {
-            return PlatformImage(cgImage: croppedImage)
+        return autoreleasepool {
+            let downsampledImage = downsampleImage(image)
+            guard let downsampledCGImage = downsampledImage.cgImage else { return image }
+            let newRect = createCropRect(downsampledCGImage, scale: downscale)
+            guard !newRect.isEmpty else { return image }
+
+            if let croppedImage = cgImage.cropping(to: newRect) {
+                return PlatformImage(cgImage: croppedImage)
+            } else {
+                return image
+            }
         }
-        return image
     }
 
-    func createCropRect(_ cgImage: CGImage) -> CGRect {
-        guard let context = createARGBBitmapContextFromImage(inImage: cgImage) else {
+    func createCropRect(_ cgImage: CGImage, scale: CGFloat = 1) -> CGRect {
+        let height = cgImage.height
+        let width = cgImage.width
+        let heightFloat = CGFloat(height)
+        let widthFloat = CGFloat(width)
+
+        guard
+            let context = createARGBBitmapContext(width: width, height: height),
+            let data = context.data?.assumingMemoryBound(to: UInt8.self)
+        else {
             return CGRect.zero
         }
 
-        let height = CGFloat(cgImage.height)
-        let width = CGFloat(cgImage.width)
-        let rect = CGRect(x: 0, y: 0, width: width, height: height)
-        context.draw(cgImage, in: rect)
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        guard let data = context.data?.assumingMemoryBound(to: UInt8.self) else {
-            return CGRect.zero
-        }
-
-        var lowX = width
-        var lowY = height
+        var lowX = widthFloat
+        var lowY = heightFloat
         var highX: CGFloat = 0
         var highY: CGFloat = 0
-        let heightInt = Int(height)
-        let widthInt = Int(width)
 
         // Filter through data and look for non-transparent pixels.
-        for y in 0 ..< heightInt {
+        for y in 0 ..< height {
             let y = CGFloat(y)
 
-            for x in 0 ..< widthInt {
+            for x in 0 ..< width {
                 let x = CGFloat(x)
-                let pixelIndex = (width * y + x) * 4 /* 4 for A, R, G, B */
+                let pixelIndex = (widthFloat * y + x) * 4 /* 4 for A, R, G, B */
 
                 // crop transparent
                 if data[Int(pixelIndex)] == 0 { continue }
@@ -86,26 +94,15 @@ struct CropBordersProcessor: ImageProcessing {
             }
         }
 
-        return CGRect(x: lowX, y: lowY, width: highX - lowX, height: highY - lowY)
+        return CGRect(x: lowX / scale, y: lowY / scale, width: (highX - lowX) / scale, height: (highY - lowY) / scale)
     }
 
-    func createARGBBitmapContextFromImage(inImage: CGImage) -> CGContext? {
-
-        let width = inImage.width
-        let height = inImage.height
+    func createARGBBitmapContext(width: Int, height: Int) -> CGContext? {
 
         let bitmapBytesPerRow = width * 4
-        let bitmapByteCount = bitmapBytesPerRow * height
-
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-
-        let bitmapData = malloc(bitmapByteCount)
-        if bitmapData == nil {
-            return nil
-        }
 
         let context = CGContext(
-            data: bitmapData,
+            data: nil,
             width: width,
             height: height,
             bitsPerComponent: 8,
@@ -115,5 +112,35 @@ struct CropBordersProcessor: ImageProcessing {
         )
 
         return context
+    }
+
+    func downsampleImage(_ image: PlatformImage) -> PlatformImage {
+        guard let data = image.jpegData(compressionQuality: 0) else {
+            return image
+        }
+
+        let finalSize = CGSize(
+            width: CGFloat(round(image.size.width * downscale)),
+            height: CGFloat(round(image.size.height * downscale))
+        )
+
+        let imageSourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let imageSource = CGImageSourceCreateWithData(data as CFData, imageSourceOptions) else {
+            return image
+        }
+
+        let maxDimension = round(max(finalSize.width, finalSize.height))
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDimension
+        ] as [CFString: Any] as CFDictionary
+
+        guard let output = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options) else {
+            return image
+        }
+
+        return PlatformImage(cgImage: output, scale: 1, orientation: image.imageOrientation)
     }
 }

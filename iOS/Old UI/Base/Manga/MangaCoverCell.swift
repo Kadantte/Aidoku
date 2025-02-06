@@ -228,7 +228,7 @@ class MangaCoverCell: UICollectionViewCell {
             source.handlesImageRequests,
             let request = try? await source.getImageRequest(url: url.absoluteString)
         {
-            urlRequest.url = URL(string: request.URL ?? "")
+            urlRequest.url = URL(string: request.url ?? "")
             for (key, value) in request.headers {
                 urlRequest.setValue(value, forHTTPHeaderField: key)
             }
@@ -240,23 +240,18 @@ class MangaCoverCell: UICollectionViewCell {
             processors: [DownsampleProcessor(width: bounds.width)]
         )
 
-        do {
-            let image = try await ImagePipeline.shared.image(for: request, delegate: self).image
-            Task { @MainActor in
-                UIView.transition(with: imageView, duration: 0.3, options: .transitionCrossDissolve) {
-                    self.imageView.image = image
+        imageTask = ImagePipeline.shared.loadImage(with: request) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let response):
+                Task { @MainActor in
+                    UIView.transition(with: self.imageView, duration: 0.3, options: .transitionCrossDissolve) {
+                        self.imageView.image = response.image
+                    }
                 }
+            case .failure:
+                imageTask = nil
             }
-        } catch {
-            imageTask = nil
         }
-    }
-}
-
-// MARK: - Nuke Delegate
-extension MangaCoverCell: ImageTaskDelegate {
-
-    func imageTaskCreated(_ task: ImageTask) {
-        imageTask = task
     }
 }

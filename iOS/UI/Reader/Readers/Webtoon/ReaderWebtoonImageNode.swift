@@ -21,7 +21,6 @@ class ReaderWebtoonImageNode: BaseObservingCellNode {
         }
     }
     var ratio: CGFloat?
-    private var imageTask: ImageTask?
     private var loading = false
 
     var pillarbox = UserDefaults.standard.bool(forKey: "Reader.pillarbox")
@@ -75,8 +74,9 @@ class ReaderWebtoonImageNode: BaseObservingCellNode {
         displayImage()
     }
 
-    override func didExitVisibleState() {
-        super.didExitVisibleState()
+    override func didExitDisplayState() {
+        super.didExitDisplayState()
+        guard !isVisible else { return }
         // don't hide images if zooming in/out
         if let delegate, delegate.isZooming {
             return
@@ -209,23 +209,54 @@ extension ReaderWebtoonImageNode {
             source.handlesImageRequests,
             let request = try? await source.getImageRequest(url: url.absoluteString)
         {
-            urlRequest.url = URL(string: request.URL ?? "")
+            urlRequest.url = URL(string: request.url ?? "")
             for (key, value) in request.headers {
                 urlRequest.setValue(value, forHTTPHeaderField: key)
             }
             if let body = request.body { urlRequest.httpBody = body }
         }
 
-        let shouldDownscale = UserDefaults.standard.bool(forKey: "Reader.downsampleImages")
+        let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages")
+        let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
         let width = await UIScreen.main.bounds.width
-        let processors = shouldDownscale ? [DownsampleProcessor(width: width)] : []
+        var processors: [ImageProcessing] = []
+        if shouldCropBorders {
+            processors.append(CropBordersProcessor())
+        }
+        if shouldDownsample {
+            processors.append(DownsampleProcessor(width: width))
+        }
 
         let request = ImageRequest(
             urlRequest: urlRequest,
             processors: processors
         )
 
-        _ = try? await ImagePipeline.shared.image(for: request, delegate: self)
+        _ = ImagePipeline.shared.loadImage(
+            with: request,
+            progress: { [weak self] _, completed, total in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.progressView.setProgress(value: Float(completed) / Float(total), withAnimation: false)
+                }
+            },
+            completion: { [weak self] result in
+                guard let self else { return }
+                loading = false
+                switch result {
+                case .success(let response):
+                    image = response.image
+                    if isNodeLoaded {
+                        displayImage()
+                    }
+                case .failure:
+                    // TODO: handle failure
+                    Task { @MainActor in
+                        self.progressView.setProgress(value: 0, withAnimation: true)
+                    }
+                }
+            }
+        )
     }
 
     private func loadImage(base64: String) {
@@ -248,6 +279,13 @@ extension ReaderWebtoonImageNode {
         // load data and cache
         if let data = Data(base64Encoded: base64) {
             if var image = UIImage(data: data) {
+                if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
+                    let processor = CropBordersProcessor()
+                    let processedImage = processor.process(image)
+                    if let processedImage = processedImage {
+                        image = processedImage
+                    }
+                }
                 if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
                     let processor = DownsampleProcessor(width: UIScreen.main.bounds.width)
                     let processedImage = processor.process(image)
@@ -292,35 +330,5 @@ extension ReaderWebtoonImageNode {
         let size = CGSize(width: UIScreen.main.bounds.width, height: scaledHeight)
         frame = CGRect(origin: .zero, size: size)
         transitionLayout(with: ASSizeRange(min: .zero, max: size), animated: true, shouldMeasureAsync: false)
-    }
-}
-
-// MARK: - Nuke Delegate
-extension ReaderWebtoonImageNode: ImageTaskDelegate {
-
-    func imageTaskCreated(_ task: ImageTask) {
-        imageTask = task
-    }
-
-    func imageTask(_ task: ImageTask, didCompleteWithResult result: Result<ImageResponse, ImagePipeline.Error>) {
-        loading = false
-        switch result {
-        case .success(let response):
-            image = response.image
-            if isNodeLoaded {
-                displayImage()
-            }
-        case .failure:
-            // TODO: handle failure
-            progressView.setProgress(value: 0, withAnimation: true)
-        }
-    }
-
-    func imageTaskDidCancel(_ task: ImageTask) {
-        // TODO: handle failure
-    }
-
-    func imageTask(_ task: ImageTask, didUpdateProgress progress: ImageTask.Progress) {
-        progressView.setProgress(value: Float(progress.completed) / Float(progress.total), withAnimation: false)
     }
 }

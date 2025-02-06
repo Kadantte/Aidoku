@@ -7,6 +7,7 @@
 
 import Foundation
 import WasmInterpreter
+import CWasm3
 
 struct SourceInfo: Codable {
     let id: String
@@ -156,7 +157,10 @@ class Source: Identifiable {
             let message = self.globalStore.readString(offset: msg, length: Int32(messageLength))
             let file = self.globalStore.readString(offset: fileName, length: Int32(fileLength))
 
-            LogManager.logger.error("[Abort] \(message ?? "") \(file ?? ""):\(line):\(column)")
+            LogManager.logger.error("[\(self.id)] [Abort] \(message ?? "") \(file ?? ""):\(line):\(column)")
+
+            // break out of the current wasm execution to prevent unreachable from being called (prevents a crash)
+            set_should_yield_next()
         }
     }
 }
@@ -258,6 +262,10 @@ extension Source {
         return defaultFilters
     }
 
+    func getDefaultLanguages() -> [String] {
+        (UserDefaults.standard.array(forKey: "\(id).languages") as? [String]) ?? []
+    }
+
     func parseFilter(from filter: FilterInfo) -> FilterBase? {
         switch filter.type {
         case "title": return TitleFilter()
@@ -353,8 +361,31 @@ extension Source {
         return await actor.getPageList(chapter: chapter)
     }
 
-    func getImageRequest(url: String) async throws -> WasmRequestObject {
-        try await actor.getImageRequest(url: url)
+    func getPageListWithoutContents(chapter: Chapter) async throws -> [Page] {
+        if await DownloadManager.shared.isChapterDownloaded(chapter: chapter) {
+            return await DownloadManager.shared.getDownloadedPagesWithoutContents(for: chapter)
+        }
+
+        return await actor.getPageList(chapter: chapter)
+    }
+
+    struct ImageRequest: Sendable {
+        let id: Int32
+        let url: String?
+        let method: HttpMethod?
+        let headers: [String: String?]
+        let body: Data?
+    }
+
+    func getImageRequest(url: String) async throws -> ImageRequest {
+        let wasmRequest = try await actor.getImageRequest(url: url)
+        return .init(
+            id: wasmRequest.id,
+            url: wasmRequest.URL,
+            method: wasmRequest.method,
+            headers: wasmRequest.headers,
+            body: wasmRequest.body
+        )
     }
 
     func modifyUrlRequest(request: URLRequest) -> URLRequest? {

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UniformTypeIdentifiers
 
 protocol DownloadTaskDelegate: AnyObject {
     func taskCancelled(task: DownloadTask) async
@@ -56,18 +57,26 @@ actor DownloadTask: Identifiable {
         if let download = downloads.first,
            let source = SourceManager.shared.source(for: download.sourceId) {
 
-            let chapter = Chapter(sourceId: download.sourceId, id: download.chapterId, mangaId: download.mangaId, title: nil, sourceOrder: -1)
+            let chapter = Chapter(
+                sourceId: download.sourceId,
+                id: download.chapterId,
+                mangaId: download.mangaId,
+                title: nil,
+                sourceOrder: -1
+            )
 
             // if directory exists (chapter already downloaded) return
             let directory = await cache.directory(for: chapter)
             guard !directory.exists else {
                 downloads.removeFirst()
+                await delegate?.downloadFinished(download: download)
                 return await next()
             }
 
             // download has been cancelled or failed, move to next
             if download.status != .queued && download.status != .downloading && download.status != .paused {
                 downloads.removeFirst()
+                await delegate?.downloadCancelled(download: download)
                 return await next()
             }
 
@@ -103,7 +112,7 @@ actor DownloadTask: Identifiable {
             downloads[downloadIndex].progress = currentPage + 1
             let page = pages[currentPage]
             await delegate?.downloadProgressChanged(download: getDownload(downloadIndex)!)
-            let pageNumber = String(format: "%03d", page.index + 1) // XXX.png
+            let pageNumber = String(format: "%03d", currentPage + 1) // XXX.png
             if let urlString = page.imageURL, let url = URL(string: urlString) {
                 var urlRequest = URLRequest(url: url)
                 // let source modify image request
@@ -113,8 +122,10 @@ actor DownloadTask: Identifiable {
                     }
                     if let body = request.body { urlRequest.httpBody = body }
                 }
-                if let (data, _) = try? await URLSession.shared.data(for: urlRequest) {
-                    try? data.write(to: tmpDirectory.appendingPathComponent(pageNumber).appendingPathExtension("png"))
+                if let (data, res) = try? await URLSession.shared.data(for: urlRequest) {
+                    // See if we can guess the file extension
+                    let fileExtention = self.guessFileExtension(response: res, defaultValue: "png")
+                    try? data.write(to: tmpDirectory.appendingPathComponent(pageNumber).appendingPathExtension(fileExtention))
                 }
             } else if let base64 = page.base64, let data = Data(base64Encoded: base64) {
                 try? data.write(to: tmpDirectory.appendingPathComponent(pageNumber).appendingPathExtension("png"))
@@ -211,5 +222,19 @@ actor DownloadTask: Identifiable {
         if !running && autostart {
             resume()
         }
+    }
+
+    // MARK: Utility
+    private func guessFileExtension(response: URLResponse, defaultValue: String) -> String {
+        if let suggestedFilename = response.suggestedFilename, !suggestedFilename.isEmpty {
+            return URL(string: suggestedFilename)?.pathExtension ?? defaultValue
+        }
+
+        guard let mimeType = response.mimeType,
+              let type = UTType(mimeType: mimeType) else {
+            return defaultValue
+        }
+
+        return type.preferredFilenameExtension ?? defaultValue
     }
 }

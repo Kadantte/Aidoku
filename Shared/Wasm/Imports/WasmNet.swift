@@ -239,7 +239,18 @@ extension WasmNet {
     var send: (Int32) -> Void {
         { descriptor in
             guard let request = self.globalStore.requests[descriptor] else { return }
-            guard let url = URL(string: request.URL ?? "") else { return }
+            let url: URL?
+            // iOS 17 encodes by default the url string causing double encoded characters
+            if #available(iOS 17.0, *) {
+                // it seems if we pass a valid RFC 3986 url string to URL() it behaves the same as on iOS 16
+                let urlEncoded = request.URL?
+                    .removingPercentEncoding?
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                url = URL(string: urlEncoded ?? "", encodingInvalidCharacters: false)
+            } else {
+                url = URL(string: request.URL ?? "")
+            }
+            guard let url else { return }
 
             var urlRequest = URLRequest(url: url)
 
@@ -332,17 +343,15 @@ extension WasmNet {
     var html: (Int32) -> Int32 {
         { descriptor in
             if let request = self.globalStore.requests[descriptor], let data = request.response?.data {
-                var content = String(data: data, encoding: .utf8)
-                if content == nil || content!.isEmpty {
-                    content = String(data: data, encoding: .ascii)
+                var content = String(data: data, encoding: .utf8) ?? ""
+                if content.isEmpty {
+                    content = String(data: data, encoding: .ascii) ?? content
                 }
-                if let content = content {
-                    if let baseUri = request.response?.response?.url?.absoluteString,
-                       let obj = try? SwiftSoup.parse(content, baseUri) {
-                        return self.globalStore.storeStdValue(obj)
-                    } else if let obj = try? SwiftSoup.parse(content) {
-                        return self.globalStore.storeStdValue(obj)
-                    }
+                if let baseUri = request.response?.response?.url?.absoluteString,
+                   let obj = try? SwiftSoup.parse(content, baseUri) {
+                    return self.globalStore.storeStdValue(obj)
+                } else if let obj = try? SwiftSoup.parse(content) {
+                    return self.globalStore.storeStdValue(obj)
                 }
             }
             return -1

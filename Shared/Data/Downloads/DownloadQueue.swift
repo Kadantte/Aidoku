@@ -40,6 +40,13 @@ actor DownloadQueue {
         }
     }
 
+    func resume() async {
+        for task in tasks {
+            await task.value.resume()
+        }
+        running = true
+    }
+
     func pause() async {
         guard running else { return }
         for task in tasks {
@@ -48,14 +55,13 @@ actor DownloadQueue {
         running = false
     }
 
-    func refreshQueue() {
-        guard running else { return }
-    }
-
     @discardableResult
     func add(chapters: [Chapter], manga: Manga? = nil, autoStart: Bool = true) async -> [Download] {
         var downloads: [Download] = []
         for chapter in chapters {
+            if await cache.isChapterDownloaded(chapter: chapter) {
+                continue
+            }
             // create tmp directory so we know it's queued
             await cache.directory(forSourceId: chapter.sourceId, mangaId: chapter.mangaId)
                 .appendingSafePathComponent(".tmp_\(chapter.id)")
@@ -73,6 +79,7 @@ actor DownloadQueue {
         if autoStart {
             await start()
         }
+        saveQueueState()
         return downloads
     }
 
@@ -86,6 +93,7 @@ actor DownloadQueue {
                 .appendingSafePathComponent(".tmp_\(chapter.id)")
                 .removeItem()
         }
+        saveQueueState()
     }
 
     func cancelDownloads(for chapters: [Chapter]) async {
@@ -97,15 +105,23 @@ actor DownloadQueue {
                     .appendingSafePathComponent(".tmp_\(chapter.id)")
                     .removeItem()
             }
+            if let queueItem = queue[chapter.sourceId]?.firstIndex(where: {
+                $0.chapterId == chapter.id && $0.mangaId == chapter.mangaId
+            }) {
+                queue[chapter.sourceId]?.remove(at: queueItem)
+            }
         }
         NotificationCenter.default.post(name: NSNotification.Name("downloadsCancelled"), object: chapters)
+        saveQueueState()
     }
 
     func cancelAll() async {
         for task in tasks {
             await task.value.cancel()
         }
+        queue = [:]
         NotificationCenter.default.post(name: NSNotification.Name("downloadsCancelled"), object: nil)
+        saveQueueState()
     }
 
     // register callback for download progress change
@@ -115,6 +131,24 @@ actor DownloadQueue {
 
     func removeProgressBlock(for chapter: Chapter) {
         progressBlocks.removeValue(forKey: chapter)
+    }
+
+    func saveQueueState() {
+        let queueData = try? JSONEncoder().encode(queue)
+        UserDefaults.standard.set(queueData, forKey: "downloadQueueState")
+    }
+
+    func loadQueueState() async {
+        guard
+            let queueData = UserDefaults.standard.data(forKey: "downloadQueueState"),
+            let queueState = try? JSONDecoder().decode([String: [Download]].self, from: queueData)
+        else {
+            return
+        }
+        queue = queueState
+        if !queue.isEmpty {
+            await start()
+        }
     }
 }
 
@@ -136,20 +170,16 @@ extension DownloadQueue {
 extension DownloadQueue: DownloadTaskDelegate {
 
     func taskCancelled(task: DownloadTask) async {
-        tasks.removeValue(forKey: task.id)
-        queue.removeValue(forKey: task.id)
+        await taskFinished(task: task)
     }
 
-    func taskPaused(task: DownloadTask) async {
-    }
+    func taskPaused(task: DownloadTask) async {}
 
     func taskFinished(task: DownloadTask) async {
         tasks.removeValue(forKey: task.id)
         queue.removeValue(forKey: task.id)
-        self.running = !tasks.isEmpty
-        if !running {
-            // all downloads finished
-        }
+        running = !tasks.isEmpty
+        saveQueueState()
     }
 
     func downloadFinished(download: Download) async {
@@ -165,8 +195,9 @@ extension DownloadQueue: DownloadTaskDelegate {
         } else {
             queue[download.sourceId] = sourceDownloads
         }
+        saveQueueState()
         if let chapter = download.chapter {
-            progressBlocks[chapter] = nil
+            progressBlocks.removeValue(forKey: chapter)
         }
         if sendCancelNotification {
             sendCancelNotification = false

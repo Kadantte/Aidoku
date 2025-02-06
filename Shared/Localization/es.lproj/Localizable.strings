@@ -58,6 +58,8 @@
 "SOURCE_ORDER" = "Orden de fuentes";
 "MISSING_SOURCE" = "Fuente faltante";
 "MISSING_SOURCE_TEXT" = "Parece que falta la fuente original para este manga. Vuelve a descargarla o elimina este manga de tu biblioteca.";
+"LINK_COPIED" = "Enlace copiado";
+"LINK_COPIED_TEXT" = "El enlace se ha copiado en el portapapeles.";
 
 // Reader
 "CHAPTER" = "Capítulo";
@@ -73,13 +75,13 @@
 "MARK_UNREAD" = "Marcar como no leído";
 "READER_SETTINGS" = "Lector";
 "READING_MODE" = "Modo de lectura";
-"DEFAULT" = "Por Defecto";
-"LTR" = "Izquierda a Derecha";
-"RTL" = "Derecha a Izquierda";
+"DEFAULT" = "Por defecto";
+"LTR" = "Izquierda a derecha";
+"RTL" = "Derecha a izquierda";
 "VERTICAL" = "Vertical";
-"VERTICAL_SCROLL" = "Desplazamiento Vertical";
-"EXPERIMENTAL" = "En Ensayo";
-"INFINITE_VERTICAL_SCROLL" = "Desplazamiento Vertical Infinito";
+"VERTICAL_SCROLL" = "Desplazamiento vertical";
+"EXPERIMENTAL" = "Experimental";
+"INFINITE_VERTICAL_SCROLL" = "Desplazamiento vertical infinito";
 "SAVE_TO_PHOTOS" = "Guardar en Fotos";
 
 // Search
@@ -88,10 +90,10 @@
 
 // Settings
 "SETTINGS" = "Configuración";
-"ABOUT" = "Acerca";
+"ABOUT" = "Acerca de";
 "GITHUB_REPO" = "Repositorio de GitHub";
 "DISCORD_SERVER" = "Servidor de Discord";
-"SUPPPORT_DEVELOPMENT" = "Apoya el Desarrollo";
+"SUPPPORT_DEVELOPMENT" = "Apoya el desarrollo";
 "GENERAL" = "General";
 "ICLOUD_SYNC" = "Sincronización con iCloud";
 "APPEARANCE" = "Apariencia";
@@ -108,7 +110,7 @@
 "PIN_MANGA_UNREAD" = "No leído";
 "PIN_MANGA_UPDATED" = "Actualizado";
 "SOURCE_LISTS" = "Lista de fuentes";
-"SOURCE_LIST_ADDED" = "Lista de fuentes agregadas";
+"SOURCE_LIST_ADDED" = "Lista de fuentes agregada";
 "SOURCE_LIST_ADDED_TEXT" = "Ahora puedes buscar fuentes externas en la pestaña de exploración.";
 "SHOW_NSFW_SOURCES" = "Mostrar fuentes NSFW";
 "READER" = "Lector";
@@ -169,7 +171,7 @@
 "HISTORY" = "Historial";
 "PAGE_X" = "Página %i";
 "VIEW_HISTORY" = "Ver historial";
-"INCOGNITO_MODE" = "Modo Incógnito";
+"INCOGNITO_MODE" = "Modo incógnito";
 "INCOGNITO_MODE_TEXT" = "Pausa el historial de lectura cuando está habilitado";
 "LIBRARY_UPDATING" = "Actualización de biblioteca";
 "UPDATE_INTERVAL" = "Intervalo de actualización";
@@ -197,7 +199,7 @@
 "CHAPTERS" = "Capítulos";
 "CHAPTER_X" = "Capítulo %g";
 "FINISHED_COLON" = "Terminado:";
-"EXCLUDED_CATEGORIES" = "Excluir categorías";
+"EXCLUDED_CATEGORIES" = "Categorías excluidas";
 "SOURCE_LIST_URL" = "Enlace de lista de fuentes";
 "NEVER" = "Nunca";
 "MISSING_SOURCES_TEXT" = "La copia de seguridad restaurada puede contener datos de las siguientes fuentes, que no están instaladas actualmente:";
@@ -209,7 +211,7 @@
 "ALL" = "Todas";
 "NONE" = "Ninguna";
 "BUILD" = "Compilación";
-"REMOVE_CHAPTER_HISTORY_TEXT" = "Esto eliminará el historial de este capítulo. Estás seguro de que quieres continuar?";
+"REMOVE_CHAPTER_HISTORY_TEXT" = "Esto eliminará el historial de este capítulo. ¿Seguro que quieres continuar?";
 "USE_MANGA_TINT_INFO" = "Tinta las páginas del manga basado en el color de la imagen de portada";
 "WITH_UNREAD_CHAPTERS" = "Con capítulos no leídos";
 "WITH_COMPLETED_STATUS" = "Con estado completado";
@@ -250,8 +252,8 @@
 "PAGE_LAYOUT" = "Diseño de página";
 "DOUBLE_PAGE" = "Doble página";
 "MULTI_LANGUAGE" = "Multi-lenguaje";
-"LOGOUT" = "Cerrar la sesión";
-"LOGOUT_FROM_%@" = "¿Cerrar la sesión de %@?";
+"LOGOUT" = "Cerrar sesión";
+"LOGOUT_FROM_%@" = "¿Cerrar sesión de %@?";
 "TRACKERS" = "Seguimiento";
 "VOLUMES" = "Volúmenes";
 "STARTED" = "Empezado";
@@ -266,8 +268,8 @@
 "DROPPED" = "Abandonado";
 "ONESHOT" = "One-Shot";
 "NOT_PUBLISHED" = "No Publicado";
-"MANHWA" = "Manhwa (las tiras cómicas surcoreanas)";
-"MANHUA" = "Manhua (historietas)";
+"MANHWA" = "Manhwa";
+"MANHUA" = "Manhua";
 "LIGHT_NOVEL" = "Novela Ligera";
 "TRACK" = "Seguir";
 "TYPE_COLON_%@" = "Tipo: %@";
@@ -293,8 +295,8 @@
 "REMOVE_FROM_CATEGORY" = "Quitar de la categoría";
 "PINNED" = "Fijado";
 "UPCOMING" = "Próximamente";
-"%i_CHAPTERS" = "%i capítulos";
-"1_CHAPTER" = "1 capítulo";
+"%i_CHAPTERS" = "%i Capítulos";
+"1_CHAPTER" = "1 Capítulo";
 "SELECT" = "Seleccionar";
 "ADD_TO_CATEGORY" = "Agregar a la categoría";
 "ADD_TO_CATEGORIES" = "Agregar a las categorías";
@@ -308,21 +310,21 @@
 "OPTIONS" = "Opciones";
 "DESTINATION" = "Destino";
 "AVAILABLE" = "Disponible";
-"NOT_FOUND" = "No se encontró";
-"FIRST_ALTERNATIVE" = "La primera de forma aleatoria";
-"MIGRATE_%i_ITEMS?" = "¿Migrar los %i elementos?";
+"NOT_FOUND" = "No encontrado";
+"FIRST_ALTERNATIVE" = "Primera alternativa";
+"MIGRATE_%i_ITEMS?" = "¿Migrar %i elementos?";
 "MIGRATE_ONE_ITEM?" = "¿Migrar 1 elemento?";
-"SYNC_LOCAL_HISTORY" = "Sincronizar el historial";
+"SYNC_LOCAL_HISTORY" = "Sincronizar el historial local";
 "TITLES" = "Títulos";
 "MIGRATE" = "Migrar";
 "SELECTED" = "Seleccionado";
-"MOST_CHAPTERS_SLOWER" = "Casi todo los capítulos (más lento)";
+"MOST_CHAPTERS_SLOWER" = "Mayoría de capítulos (más lento)";
 "SYNC_WITH_TRACKER" = "Sincronizar con rastreador";
-"SYNC_WITH_TRACKER_INFO" = "El último episodio de la audiencia es más alto (%g) que el último episodio que leíste. ¿Quieres actualizar tu historial local para que sea el mismo?";
+"SYNC_WITH_TRACKER_INFO" = "Parece que el último capítulo de tu rastreador (%g) es más alto que el último capítulo que leíste. ¿Quieres actualizar tu historial local para que coincidan?";
 "MIGRATION" = "Migración";
 "START_MATCHING" = "Empezar a emparejar";
 "UPLOAD_DATE" = "Fecha de subida";
-"TRACKING" = "Rastreo";
+"TRACKING" = "Seguimiento";
 "ALL_CHAPTERS_READ" = "Todos los capítulos leídos";
 "DEFAULT_READING_MODE" = "Modo de lectura por defecto";
 "PILLARBOX_ORIENTATION" = "Orientación del Pillarbox";
@@ -330,3 +332,35 @@
 "PILLARBOX_AMOUNT" = "Cantidad de Pillarbox";
 "PILLARBOX" = "Efecto Pillarbox";
 "PILLARBOX_ORIENTATION_INFO" = "La orientación del Pillarbox determina en qué orientaciones debe activarse el efecto.";
+"COVER" = "Portada";
+"CROP_BORDERS" = "Límite de los bordes";
+"REORDER" = "Reordenar";
+"PIN" = "Anclar";
+"UNPIN" = "Desanclar";
+"COPY" = "Copiar";
+"ANILIST_LOGIN_NEEDED" = "Necesitas iniciar sesión en AniList";
+"ANILIST_LOGIN_NEEDED_TEXT" = "Tu token de AniList ha caducado, por lo que el rastreador de AniList dejará de funcionar hasta que vuelvas a conectarte en ajustes.";
+"BACKUP_ERROR" = "Error de la copia de seguridad";
+"BACKUP_ERROR_TEXT" = "Se ha producido un error al restaurar: %@. La copia de seguridad puede no ser válida.";
+"MAL_LOGIN_NEEDED" = "Se necesita iniciar sesión en MyAnimeList";
+"MAL_LOGIN_NEEDED_TEXT" = "Tu token de MyAnimeList ha caducado, por lo que el rastreador de MyAnimeList dejará de funcionar hasta que vuelvas a iniciar sesión en ajustes.";
+"PAUSE" = "Pausa";
+"ONLY_DOWNLOAD_ON_WIFI" = "Descargar sólo en Wi-Fi";
+"WARNING" = "Advertencia";
+"NO_WIFI_ALERT_TITLE" = "Sin WiFi";
+"RESUME" = "Resumen";
+"NO_WIFI_ALERT_MESSAGE" = "Necesitas estar conectado a Wi-Fi para descargar este contenido. Por favor, conéctate a una red Wi-Fi e inténtalo de nuevo.";
+"DOWNLOAD_ANYWAY_MESSAGE" = "En este momento no tienes conexión Wi-Fi. ¿Descargar de todos modos?";
+"READER_BG_COLOR" = "Color de fondo";
+"READER_BG_COLOR_SYSTEM" = "Sistema";
+"READER_BG_COLOR_WHITE" = "Blanco";
+"READER_BG_COLOR_BLACK" = "Negro";
+
+// Manga Updates
+"MANGA_UPDATES" = "Actualizaciones";
+"%lld_PLUS_MORE" = "+%lld más";
+"NO_UPDATES" = "Sin actualizaciones";
+"SKIPPING_CHAPTERS" = "Se omiten %i capítulos, ya sea que falten en la fuente o se hayan filtrado";
+"DELETE_DOWNLOAD_AFTER_READING" = "Eliminar la descarga después de leerla";
+"NO_SCANLATOR" = "Sin scanlator";
+"SCANLATOR" = "Scanlator";

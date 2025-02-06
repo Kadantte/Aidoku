@@ -21,14 +21,16 @@ import Foundation
 // global class to manage downloads
 @MainActor
 class DownloadManager {
-
     static let shared = DownloadManager()
 
     static let directory = FileManager.default.documentDirectory.appendingPathComponent("Downloads", isDirectory: true)
 
     private let cache: DownloadCache
     private let queue: DownloadQueue
-//    private let store: DownloadStore // TODO: store downloads so if the app exits we can resume
+
+    private(set) var downloadsPaused = false
+
+    var ignoreConnectionType = false
 
     init() {
         self.cache = DownloadCache()
@@ -62,6 +64,19 @@ class DownloadManager {
         return pages.sorted { $0.index < $1.index }
     }
 
+    func getDownloadedPagesWithoutContents(for chapter: Chapter) -> [Page] {
+        cache.directory(for: chapter).contents
+            .map { url in
+                Page(
+                    sourceId: chapter.sourceId,
+                    chapterId: chapter.id,
+                    index: (Int(url.deletingPathExtension().lastPathComponent) ?? 1) - 1,
+                    imageURL: url.absoluteString
+                )
+            }
+            .sorted { $0.index < $1.index }
+    }
+
     func isChapterDownloaded(chapter: Chapter) -> Bool {
         cache.isChapterDownloaded(chapter: chapter)
     }
@@ -87,13 +102,23 @@ class DownloadManager {
     func hasQueuedDownloads() async -> Bool {
         await queue.hasQueuedDownloads()
     }
+
+    func loadQueueState() async {
+        await queue.loadQueueState()
+
+        // fetch loaded downloads to notify ui about
+        let downloads = await queue.queue.flatMap(\.value)
+        if !downloads.isEmpty {
+            NotificationCenter.default.post(name: NSNotification.Name("downloadsQueued"), object: downloads)
+        }
+    }
 }
 
 extension DownloadManager {
 
     func downloadAll(manga: Manga) async {
         let chapters = await CoreDataManager.shared.getChapters(sourceId: manga.sourceId, mangaId: manga.id)
-        download(chapters: chapters, manga: manga)
+        download(chapters: chapters.reversed(), manga: manga)
     }
 
     func downloadUnread(manga: Manga) async {
@@ -101,7 +126,7 @@ extension DownloadManager {
         let chapters = await CoreDataManager.shared.getChapters(sourceId: manga.sourceId, mangaId: manga.id).filter {
             readingHistory[$0.id] == nil || readingHistory[$0.id]?.page != -1
         }
-        download(chapters: chapters, manga: manga)
+        download(chapters: chapters.reversed(), manga: manga)
     }
 
     func download(chapters: [Chapter], manga: Manga? = nil) {
@@ -125,6 +150,22 @@ extension DownloadManager {
         NotificationCenter.default.post(name: NSNotification.Name("downloadsRemoved"), object: manga)
     }
 
+    func pauseDownloads(for chapters: [Chapter] = []) {
+        Task {
+            await queue.pause()
+        }
+        downloadsPaused = true
+        NotificationCenter.default.post(name: Notification.Name("downloadsPaused"), object: nil)
+    }
+
+    func resumeDownloads(for chapters: [Chapter] = []) {
+        Task {
+            await queue.resume()
+        }
+        downloadsPaused = false
+        NotificationCenter.default.post(name: Notification.Name("downloadsResumed"), object: nil)
+    }
+
     func cancelDownload(for chapter: Chapter) {
         Task {
             await queue.cancelDownload(for: chapter)
@@ -139,6 +180,7 @@ extension DownloadManager {
                 await queue.cancelDownloads(for: chapters)
             }
         }
+        downloadsPaused = false
     }
 
     func onProgress(for chapter: Chapter, block: @escaping (Int, Int) -> Void) {

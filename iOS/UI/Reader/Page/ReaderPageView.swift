@@ -80,8 +80,10 @@ class ReaderPageView: UIView {
     }
 
     func setPageImage(url: URL, sourceId: String? = nil) async -> Bool {
-        progressView.setProgress(value: 0, withAnimation: false)
-        progressView.isHidden = false
+        if imageView.image == nil {
+            progressView.setProgress(value: 0, withAnimation: false)
+            progressView.isHidden = false
+        }
 
         let request: ImageRequest
 
@@ -89,7 +91,7 @@ class ReaderPageView: UIView {
             switch imageTask.state {
             case .running:
                 if completion != nil {
-                    completion!(false)
+                    completion!(imageView.image != nil)
                 }
                 return await withCheckedContinuation({ continuation in
                     self.completion = { success in
@@ -115,7 +117,7 @@ class ReaderPageView: UIView {
                 source.handlesImageRequests,
                 let request = try? await source.getImageRequest(url: url.absoluteString)
             {
-                urlRequest.url = URL(string: request.URL ?? "")
+                urlRequest.url = URL(string: request.url ?? "")
                 for (key, value) in request.headers {
                     urlRequest.setValue(value, forHTTPHeaderField: key)
                 }
@@ -123,11 +125,11 @@ class ReaderPageView: UIView {
             }
 
             var processors: [ImageProcessing] = []
-            if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
-                processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
-            }
             if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
                 processors.append(CropBordersProcessor())
+            }
+            if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
+                processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
             }
 
             request = ImageRequest(
@@ -136,16 +138,33 @@ class ReaderPageView: UIView {
             )
         }
 
-        let success: Bool
+        return await startImageTask(request)
+    }
 
-        do {
-            _ = try await ImagePipeline.shared.image(for: request, delegate: self).image
-            success = true
-        } catch {
-            success = false
+    func startImageTask(_ request: ImageRequest) async -> Bool {
+        await withCheckedContinuation { continuation in
+            imageTask = ImagePipeline.shared.loadImage(
+                with: request,
+                progress: { [weak self] _, completed, total in
+                    guard let self else { return }
+                    self.progressView.setProgress(value: Float(completed) / Float(total), withAnimation: false)
+                },
+                completion: { [weak self] result in
+                    guard let self else { return }
+                    switch result {
+                    case .success(let response):
+                        imageView.image = response.image
+                        fixImageSize()
+                        completion?(true)
+                        continuation.resume(returning: true)
+                    case .failure:
+                        completion?(false)
+                        continuation.resume(returning: false)
+                    }
+                    progressView.isHidden = true
+                }
+            )
         }
-
-        return success
     }
 
     func setPageImage(base64: String, key: Int) async -> Bool {
@@ -165,15 +184,15 @@ class ReaderPageView: UIView {
 
         if let data = Data(base64Encoded: base64) {
             if var image = UIImage(data: data) {
-                if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
-                    let processor = DownsampleProcessor(width: UIScreen.main.bounds.width)
+                if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
+                    let processor = CropBordersProcessor()
                     let processedImage = processor.process(image)
                     if let processedImage = processedImage {
                         image = processedImage
                     }
                 }
-                if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
-                    let processor = CropBordersProcessor()
+                if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
+                    let processor = DownsampleProcessor(width: UIScreen.main.bounds.width)
                     let processedImage = processor.process(image)
                     if let processedImage = processedImage {
                         image = processedImage
@@ -222,35 +241,5 @@ class ReaderPageView: UIView {
         }
         imageWidthConstraint?.isActive = true
         imageHeightConstraint?.isActive = true
-    }
-}
-
-// MARK: - Nuke Delegate
-extension ReaderPageView: ImageTaskDelegate {
-
-    func imageTaskCreated(_ task: ImageTask) {
-        Task { @MainActor in
-            imageTask = task
-        }
-    }
-
-    func imageTask(_ task: ImageTask, didCompleteWithResult result: Result<ImageResponse, ImagePipeline.Error>) {
-        switch result {
-        case .success(let response):
-            imageView.image = response.image
-            fixImageSize()
-            completion?(true)
-        case .failure:
-            completion?(false)
-        }
-        progressView.isHidden = true
-    }
-
-    func imageTaskDidCancel(_ task: ImageTask) {
-        completion?(false)
-    }
-
-    func imageTask(_ task: ImageTask, didUpdateProgress progress: ImageTask.Progress) {
-        progressView.setProgress(value: Float(progress.completed) / Float(progress.total), withAnimation: false)
     }
 }

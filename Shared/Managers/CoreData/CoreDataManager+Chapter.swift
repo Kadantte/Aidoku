@@ -116,11 +116,18 @@ extension CoreDataManager {
     }
 
     /// Set a list of chapters for a manga.
-    func setChapters(_ chapters: [Chapter], sourceId: String, mangaId: String, context: NSManagedObjectContext? = nil) {
+    /// - Returns: New created chapters
+    @discardableResult
+    func setChapters(
+        _ chapters: [Chapter],
+        sourceId: String,
+        mangaId: String,
+        context: NSManagedObjectContext? = nil
+    ) -> [ChapterObject] {
         let context = context ?? self.context
         var newChapters = chapters
 
-        guard let manga = self.getManga(sourceId: sourceId, mangaId: mangaId, context: context) else { return }
+        guard let manga = self.getManga(sourceId: sourceId, mangaId: mangaId, context: context) else { return [] }
 
         // update existing chapter objects
         let chapterObjects = getChapters(sourceId: sourceId, mangaId: mangaId, context: context)
@@ -140,35 +147,117 @@ extension CoreDataManager {
         }
 
         // create new chapter objects
+        var newChaptersCreated = [ChapterObject]()
         for chapter in newChapters where !hasChapter(
             sourceId: sourceId,
             mangaId: mangaId,
             chapterId: chapter.id,
             context: context
         ) {
-            createChapter(chapter, mangaObject: manga, context: context)
+            if let chapterObject = createChapter(chapter, mangaObject: manga, context: context) {
+                newChaptersCreated.append(chapterObject)
+            }
         }
+        return newChaptersCreated
     }
 
     /// Get the number of unread chapters for a manga.
-    func unreadCount(sourceId: String, mangaId: String, context: NSManagedObjectContext? = nil) -> Int {
+    func unreadCount(
+        sourceId: String,
+        mangaId: String,
+        lang: String?,
+        scanlators: [String]?,
+        context: NSManagedObjectContext? = nil
+    ) -> Int {
+        let scanlators: [String]? = if scanlators?.isEmpty ?? true {
+            nil
+        } else {
+            scanlators
+        }
         let context = context ?? self.context
         let request = ChapterObject.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "sourceId == %@ AND mangaId == %@ AND (history == nil OR history.completed == false)",
-            sourceId, mangaId
-        )
+        if let scanlators, let lang {
+            request.predicate = NSPredicate(
+                format: """
+                sourceId == %@
+                AND mangaId == %@
+                AND lang == %@
+                AND ((scanlator IN %@) OR (scanlator == nil AND %@ CONTAINS ''))
+                AND (history == nil OR history.completed == false)
+                """,
+                sourceId, mangaId, lang, scanlators, scanlators
+            )
+        } else if let scanlators {
+            request.predicate = NSPredicate(
+                format: """
+                sourceId == %@
+                AND mangaId == %@
+                AND ((scanlator IN %@) OR (scanlator == nil AND %@ CONTAINS ''))
+                AND (history == nil OR history.completed == false)
+                """,
+                sourceId, mangaId, scanlators, scanlators
+            )
+        } else if let lang {
+            request.predicate = NSPredicate(
+                format: """
+                sourceId == %@
+                AND mangaId == %@
+                AND lang == %@
+                AND (history == nil OR history.completed == false)
+                """,
+                sourceId, mangaId, lang
+            )
+        } else {
+            request.predicate = NSPredicate(
+                format: "sourceId == %@ AND mangaId == %@ AND (history == nil OR history.completed == false)",
+                sourceId, mangaId
+            )
+        }
         return (try? context.count(for: request)) ?? 0
     }
 
     /// Get the number of read chapters for a manga.
-    func readCount(sourceId: String, mangaId: String, context: NSManagedObjectContext? = nil) -> Int {
+    func readCount(
+        sourceId: String,
+        mangaId: String,
+        lang: String?,
+        scanlators: [String]?,
+        context: NSManagedObjectContext? = nil
+    ) -> Int {
         let context = context ?? self.context
         let request = ChapterObject.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "sourceId == %@ AND mangaId == %@ AND history != nil AND history.completed == true",
-            sourceId, mangaId
-        )
+        if let scanlators, let lang {
+            request.predicate = NSPredicate(
+                format: """
+                sourceId == %@
+                AND mangaId == %@
+                AND lang == %@
+                AND ((scanlator IN %@) OR (scanlator == nil AND %@ CONTAINS ''))
+                AND history.completed == true
+                """,
+                sourceId, mangaId, lang, scanlators, scanlators
+            )
+        } else if let scanlators {
+            request.predicate = NSPredicate(
+                format: """
+                sourceId == %@
+                AND mangaId == %@
+                AND ((scanlator IN %@) OR (scanlator == nil AND %@ CONTAINS ''))
+                AND history.completed == true
+                """,
+                sourceId, mangaId, scanlators, scanlators
+            )
+        } else if let lang {
+            request.predicate = NSPredicate(
+                format: "sourceId == %@ AND mangaId == %@ AND history != nil AND lang == %@ AND history.completed == true",
+                sourceId, mangaId, lang
+            )
+        } else {
+            request.predicate = NSPredicate(
+                format: "sourceId == %@ AND mangaId == %@ AND history != nil AND history.completed == true",
+                sourceId, mangaId
+            )
+        }
         return (try? context.count(for: request)) ?? 0
     }
 }
